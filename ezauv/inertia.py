@@ -54,7 +54,7 @@ class Sphere(InertiaGeometry):
         self.radius = radius
 
     def inertia_tensor(self):
-        I = (2 / 5) * self.mass * self.radius**2  # noqa: E741
+        I = (2 / 5) * self.mass * self.radius**2
         return I * np.eye(3)
     
 class HollowCylinder(InertiaGeometry):
