@@ -2,9 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 import numpy as np
 
-from .sensor_interface import SensorInterface
-
-
 class Task(ABC):
 
     @property
@@ -18,7 +15,7 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def update(self, sensors: SensorInterface) -> np.ndarray:
+    def update(self, sensors) -> np.ndarray:
         pass
 
 class Subtask(ABC):
@@ -28,7 +25,7 @@ class Subtask(ABC):
         pass
 
     @abstractmethod
-    def update(self, sensors: SensorInterface, wanted_speed: np.ndarray) -> np.ndarray:
+    def update(self, sensors, wanted_speed: np.ndarray) -> np.ndarray:
         pass
 
 

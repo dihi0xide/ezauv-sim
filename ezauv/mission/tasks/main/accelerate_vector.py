@@ -1,5 +1,5 @@
-from ..mission import Task
-from ..sensor_interface import SensorInterface
+from ezauv.mission.mission import Task
+from ezauv.hardware.sensor_interface import SensorInterface
 
 import numpy as np
 import time

@@ -1,7 +1,6 @@
-from ..mission import Subtask
-from ..sensor_interface import SensorInterface
-from ..simulation.simulation import Simulation
-from ..simulation.simulation_animator import set_text
+from ezauv.mission.mission import Subtask
+from ezauv.hardware.sensor_interface import SensorInterface
+from ezauv.simulation.core import Simulation
 
 import numpy as np
 import time

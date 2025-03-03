@@ -1,12 +1,10 @@
-from ..mission import Subtask
-from ..sensor_interface import SensorInterface
-from ..simulation.simulation import Simulation
-from ..pid import PID
+from ezauv.mission.mission import Subtask
+from ezauv.hardware.sensor_interface import SensorInterface
+from ezauv.utils.pid import PID
 
 import numpy as np
 import time
 import quaternion
-from ..simulation.simulation_animator import set_text
 
 
 

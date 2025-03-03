@@ -1,12 +1,7 @@
-from ..sensor_interface import DepthInterface, ImuInterface
-from ..motor_controller import MotorController
 import numpy as np
-from scipy.ndimage import rotate
-from .simulation_animator import SimulationAnimator
+from ezauv.simulation.animator import SimulationAnimator
+from ezauv.simulation.fake_sensors import FakeDepthSensor, FakeIMU
 from scipy.spatial.transform import Rotation as R
-
-from ..simulation.simulation_animator import set_text
-
 import quaternion
 
 # kinda sucks, 2d
@@ -59,6 +54,7 @@ class Simulation:
             self.rotational_velocity += self.rotational_acceleration * self.timestep
             rotation = R.from_euler('z', np.deg2rad(self.rotation))
             
+            
             rotated_speeds = []
             rotated_locations = []
             torques = []
@@ -88,46 +84,13 @@ class Simulation:
 
     def update_motor_speeds(self, speeds):
         self.motor_speeds = [d * s for d, s in zip(self.motor_directions, speeds)]
-
-    class FakeDepthSensor(DepthInterface):
-        def __init__(self, deviation):
-            self.deviation = deviation
-
-        def get_depth(self):
-            return 0.
-        
-        def initialize(self):
-            pass
-
-        def overview(self) -> str:
-            return f"Simulated Depth Sensor -- Standard deviation: {self.deviation}. Currently hovercraft-only, no depth."
-        
-    class FakeIMU(ImuInterface):
-
-        def __init__(self, max_dev_accel, acceleration_function, rotation_function):
-            self.max_dev_accel = max_dev_accel
-            self.acceleration_function = acceleration_function
-            self.rotation_function = rotation_function
-
-        def get_accelerations(self):
-            acceleration = self.acceleration_function() + (np.random.rand(2) - 0.5) * 2 * self.max_dev_accel
-            return np.append(acceleration, 0) # bc it expects a 3d acceleration
-        
-        def get_rotation(self):
-            return self.rotation_function()
-
-        def initialize(self):
-            pass
-
-        def overview(self) -> str:
-            return f"Simulated IMU -- Standard deviation: {self.max_dev_accel}"
         
 
     def depth(self, dev):
-        return self.FakeDepthSensor(dev)
+        return FakeDepthSensor(dev)
     
     def imu(self, dev):
-        return self.FakeIMU(dev, lambda: self.real_accel, lambda: quaternion.from_euler_angles([np.deg2rad(self.rotation), 0., 0.]))
+        return FakeIMU(dev, lambda: self.real_accel, lambda: quaternion.from_euler_angles([np.deg2rad(self.rotation), 0., 0.]))
     
     def set(self, index, speed):
             

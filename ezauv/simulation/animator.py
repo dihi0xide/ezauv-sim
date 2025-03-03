@@ -4,7 +4,7 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 import pygame
-import subprocess
+import imageio
 
 debug_text = "test test"
 def set_text(text):
@@ -23,24 +23,13 @@ class SimulationAnimator:
         self.frame_count = 0
 
         os.makedirs(output_dir, exist_ok=True)
-        self.screen = pygame.display.set_mode((width, height))
-        self.clock = pygame.time.Clock()
-
-        self.ffmpeg_command = [
-            "ffmpeg", "-y", "-r", str(self.fps),
-            "-f", "rawvideo", "-pix_fmt", "rgb24",
-            "-s", f"{self.width}x{self.height}",
-            "-i", "-",  
-            "-vcodec", "libx264", "-crf", "25", "-pix_fmt", "yuv420p",
-            os.path.join(self.output_dir, "animation.mp4")
-        ]
+        self.screen = pygame.Surface((width, height))
+        
+        self.video_path = os.path.join(self.output_dir, "animation.mp4")
+        self.writer = imageio.get_writer(self.video_path, fps=self.fps, codec='libx264', quality=8)
+        
         pygame.font.init()
         self.font = pygame.font.SysFont('Arial', 30)
-
-
-        self.ffmpeg_proc = subprocess.Popen(
-            self.ffmpeg_command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
 
     def to_screen(self, unit_position):
         return (unit_position * self.scale_factor + self.origin).astype(int)
@@ -69,18 +58,14 @@ class SimulationAnimator:
             acc_endpoint = pos + acc * 0.5  
             pygame.draw.line(self.screen, (200, 150, 0), self.to_screen(pos), self.to_screen(acc_endpoint), 2)  
         text_surface = self.font.render(debug_text, False, (0, 0, 0))
-        self.screen.blit(text_surface, (0,0))
+        self.screen.blit(text_surface, (0, 0))
 
-        raw_frame = pygame.image.tostring(self.screen, "RGB")
-        self.ffmpeg_proc.stdin.write(raw_frame)
-        
-
-        pygame.display.flip()
-        self.clock.tick(self.fps)
+        raw_frame = pygame.surfarray.array3d(self.screen)
+        raw_frame = np.rot90(raw_frame, k=3)  # Rotate to match correct orientation
+        raw_frame = np.fliplr(raw_frame)  # Flip horizontally
+        self.writer.append_data(raw_frame)
 
     def render(self):
-        self.ffmpeg_proc.stdin.close()
-        self.ffmpeg_proc.wait()
-
+        self.writer.close()
         pygame.quit()
-        print(f"Video saved at: {os.path.join(self.output_dir, 'animation.mp4')}")
+        print(f"Video saved at: {self.video_path}")

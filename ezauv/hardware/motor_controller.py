@@ -4,8 +4,7 @@ from gurobipy import GRB, Model, quicksum
 import quaternion
 import time
 
-from .logger import LogLevel
-from .simulation.simulation_animator import set_text
+from ezauv.utils.logger import LogLevel
 
 
 class DeadzoneOptimizer:

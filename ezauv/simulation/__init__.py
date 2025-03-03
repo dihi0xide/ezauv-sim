@@ -1,2 +1,2 @@
-from .simulation import Simulation
-from .simulation_animator import SimulationAnimator
+from .animator import SimulationAnimator
+from .core import Simulation
