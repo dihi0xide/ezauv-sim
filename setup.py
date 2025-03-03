@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ezauv-andre_g',
+    name='ezauv',
     version='0.1.0',
     packages=find_packages(),
     install_requires=[
