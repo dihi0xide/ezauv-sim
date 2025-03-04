@@ -69,7 +69,6 @@ class AUV:
                     # set_text(str(" ".join(str(t) for t in task.update(self.sensors))))
                     for subtask in self.subtasks:
                         wanted_direction += subtask.update(self.sensors, wanted_direction)
-                    # set_text(f"dir: {str(wanted_direction[5])}, angle: {self.sensors.}")
                     # wanted_direction += np.sum([subtask.update(self.sensors, wanted_direction) for subtask in self.subtasks])
 
                     solved_motors = self.motor_controller.solve(

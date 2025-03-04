@@ -26,7 +26,6 @@ motor_directions = [
 
 
 
-# print([f"{i}, {loc}, {direction}" for i, (loc, direction) in enumerate(zip(motor_locations, motor_directions))])
 
 
 bounds = [[-1, 1]] * 4

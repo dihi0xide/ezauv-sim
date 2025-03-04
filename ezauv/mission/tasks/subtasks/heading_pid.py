@@ -38,6 +38,5 @@ class HeadingPID(Subtask):
             diff = sign * (abs_diff_yaw + abs_diff_target)
 
         signal = self.pid.signal(-diff)
-        # set_text(f"yaw: {np.round(yaw, decimals=1)}, diff: {np.round(-diff, decimals=1)}, signal: {signal}")
         # print(quaternion.as_euler_angles(sensors.imu.get_rotation()))
         return np.array([0., 0., 0., 0., 0., signal])

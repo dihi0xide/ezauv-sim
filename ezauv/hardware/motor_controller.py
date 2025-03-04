@@ -156,7 +156,7 @@ class MotorController:
         
         level = LogLevel.INFO if problems == 0 else LogLevel.WARNING
 
-        self.log(f"Motors initalized with {problems} problem{"" if problems==1 else "s"}", level=level)
+        self.log(f"Motors initalized with {problems} problem{'' if problems==1 else 's'}", level=level)
     
     def reset_optimizer(self):
         bounds = []
@@ -199,7 +199,6 @@ class MotorController:
         return optimized
     
     def set_motors(self, motor_speeds):
-        # print([f"{motor_speeds[i]}, {i}" for i in range(len(motor_speeds))])
         # print(len(motor_speeds))
         # print(motor_speed)
         # print(self.motor_matrix)
