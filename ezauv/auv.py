@@ -102,11 +102,12 @@ class AUV:
                 for method_name, method in kill_methods:
                     self.logger.log(f"Attempting {method_name}...")
                     method()
-                    if self.sensors.killed():
-                        self.logger.log(f"{method_name.capitalize()} succeeded")
-                        break
-                    else:
-                        self.logger.log(f"{method_name.capitalize()} failed", level=LogLevel.ERROR)
+                    break
+                    # if self.sensors.killed():
+                        # self.logger.log(f"{method_name.capitalize()} succeeded")
+                        # break
+                    # else:
+                        # self.logger.log(f"{method_name.capitalize()} failed", level=LogLevel.ERROR)
                 else:
                     self.logger.log("All kills ineffective. Manual intervention required", level=LogLevel.ERROR)
             
