@@ -3,7 +3,6 @@ from ezauv.hardware.sensor_interface import SensorInterface
 from ezauv.utils.pid import PID
 
 import numpy as np
-import time
 import quaternion
 
 
@@ -19,7 +18,7 @@ class HeadingPID(Subtask):
     def name(self) -> str:
         return "Heading PID subtask"
 
-    def update(self, sensors: SensorInterface, wanted_speed: np.ndarray) -> np.ndarray:
+    def update(self, sensors: SensorInterface) -> np.ndarray:
         q = sensors.imu.get_rotation()
         v_quat = q * np.quaternion(0, 0.6, 0.0, 0.1) * q.conjugate()
         # v
@@ -38,5 +37,4 @@ class HeadingPID(Subtask):
             diff = sign * (abs_diff_yaw + abs_diff_target)
 
         signal = self.pid.signal(-diff)
-        # print(quaternion.as_euler_angles(sensors.imu.get_rotation()))
         return np.array([0., 0., 0., 0., 0., signal])

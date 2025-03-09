@@ -7,29 +7,28 @@ from ezauv.utils.inertia import InertiaBuilder, Cuboid
 from ezauv.mission.tasks.main import AccelerateVector, RunFunction
 from ezauv.mission.tasks.subtasks import HeadingPID, Simulate
 from ezauv.mission import Path
-
-
 from ezauv.simulation.core import Simulation
+
+
 motor_locations = [
     np.array([-1., -1., 0.]),
     np.array([-1., 1., 0.]),
     np.array([1., 1., 0.]),
     np.array([1., -1., 0.])
-    ]
+]
 
 motor_directions = [
     np.array([1., -1., 0.]),
     np.array([1., 1., 0.]),
     np.array([1., -1., 0.]),
     np.array([1., 1., 0.])
-    ]
+] # this debug motor configuration is the same as bvr auv's hovercraft
 
 
 
+bounds = [[-1, 1]] * 4 # motors can't go outside of (-100%, 100%)...
+deadzone = [[-0.1, 0.1]] * 4 # or inside (-10%, 10%), unless they equal 0 exactly
 
-
-bounds = [[-1, 1]] * 4
-deadzone = [[-0.1, 0.1]] * 4
 sim = Simulation(motor_locations, motor_directions, 1/6, bounds, deadzone)
 
 sim_anchovy = AUV(
@@ -41,7 +40,8 @@ sim_anchovy = AUV(
                 height=1,
                 depth=0.1,
                 center=np.array([0,0,0])
-            )).moment_of_inertia(),
+            )).moment_of_inertia(), # the moment of inertia helps with rotation
+
             motors = [
                 Motor(
                     direction,
@@ -55,23 +55,17 @@ sim_anchovy = AUV(
                 ]
         ),
         sensors = SensorInterface(imu=sim.imu(0.05), depth=sim.depth(0.)),
-        pin_kill = lambda: None
     )
 
-sim_anchovy.register_subtask(Simulate(sim))
-sim_anchovy.register_subtask(HeadingPID(0, 0.03, 0.0, 0.01))
+sim_anchovy.register_subtask(Simulate(sim)) # gotta make sure it knows to simulate the sub
+sim_anchovy.register_subtask(HeadingPID(0, 0.03, 0.0, 0.01)) # this will keep it facing straight
 
-# print()
 
 mission = Path(
-    AccelerateVector(np.array([0., 0., 0., 0., 0., 0.]), 20),
-    RunFunction(lambda: sim.apply_force(thrust=np.array([0.,0.]), rotation=10)),
-    AccelerateVector(np.array([0., 0., 0., 0., 0., 0.]), 20),
-    # AccelerateVector(np.array([-0.5, -0.5, 0., 0., 0., 0.]), 3),
-    # AccelerateVector(np.array([0., 0., 0., 0., 0., 1.]), 5)
-)
+    AccelerateVector(np.array([1., 0., 0., 0., 0., 0.]), 2), # start by going forward
+    AccelerateVector(np.array([-1, 0., 0., 0., 0., 0.]), 2), # slow down...
+    AccelerateVector(np.array([0., 0., 0., 0., 0., 100.]), 10)) # spin as fast as you can!
 
 sim_anchovy.travel_path(mission)
 
 sim.render()
-# print((sum(test) / len(test)) * 1000)

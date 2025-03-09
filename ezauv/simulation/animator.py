@@ -6,13 +6,13 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import imageio
 
-debug_text = "test test"
-def set_text(text):
+debug_text = ""
+def set_text(text): # debug method
     global debug_text
     debug_text = text
 
 class SimulationAnimator:
-    def __init__(self, width=600, height=600, fps=30, frames=100, output_dir="videos"):
+    def __init__(self, width=608, height=608, fps=30, frames=100, output_dir="videos"):
         self.width = width
         self.height = height
         self.scale_factor = self.width / 30  

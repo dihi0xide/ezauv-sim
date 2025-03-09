@@ -2,7 +2,6 @@ from typing import List, Callable, Optional
 import numpy as np
 from gurobipy import GRB, Model, quicksum
 import quaternion
-import time
 
 from ezauv.utils.logger import LogLevel
 
@@ -55,9 +54,7 @@ class DeadzoneOptimizer:
         self.constrs = []
         for j in range(self.m):
             expr = quicksum(self.M[j, i] * (self.u[i]) for i in range(self.n)) + self.eps[j]
-            # expr = self.eps[j] - 1
-            # expr = quicksum(M[j, i] * self.u[i] for i in range(self.n))
-            # expr = 1 - self.eps[j]
+            
             self.constrs.append(self.model.addConstr(expr == 0, name=f"eq_row_{j}"))
             # matrix multiplication must be true
 
@@ -80,10 +77,7 @@ class DeadzoneOptimizer:
 
 
         eps_opt = [self.eps[j].X for j in range(self.m)]
-        # print(eps_opt)
-        # if(not np.all(np.isclose(eps_opt, 0.0))):
-            # set_text("rotation: " + " ".join(str(t) for t in V))
-            # print(V[5])
+        
         
         for j in range(self.m):
             self.eps[j].LB = eps_opt[j]
@@ -101,7 +95,6 @@ class DeadzoneOptimizer:
         return False, None
 
 
-test = []
 class Motor:
 
     class Range:
@@ -142,6 +135,8 @@ class MotorController:
         self.mT = None
         self.reset_optimizer()
 
+        self.prev_sent = {}
+
     def overview(self) -> None:
         self.log("---Motor controller overview---")
         self.log(f"Inertia tensor:\n{self.inertia}")
@@ -159,11 +154,14 @@ class MotorController:
         self.log(f"Motors initalized with {problems} problem{'' if problems==1 else 's'}", level=level)
     
     def reset_optimizer(self):
+        """
+        Recalculate the motor matrix.
+        Should be called if the inertia, motor locations, or motor thrust vectors are changed.
+        """
         bounds = []
         deadzones = []
 
         for i, motor in enumerate(self.motors):
-            # print(motor.thrust_vector)
             new_vector = np.array([np.concatenate([motor.thrust_vector, self.inertia @ motor.torque_vector], axis=None)]).T
             if(i == 0):
                 self.motor_matrix = new_vector
@@ -176,62 +174,38 @@ class MotorController:
         self.mT = self.motor_matrix.T
 
     def rotate(self, rotation):
+        """
+        Rotate the motor matrix by the quaternion rotation.
+        """
         rotated_vectors = []
         for vec in self.mT:
             split_vec = np.split(vec, [3])
-            # a = []
-            # a.extend([quaternion.rotate_vectors(rotation, split_vec)])
-            # print(a)
             rotated_vectors.append([val for sublist in quaternion.rotate_vectors(rotation, split_vec) for val in sublist])
 
         return np.array(rotated_vectors).T
 
     def solve(self, wanted_vector, rotation):
-        # print(self.motor_matrix)
-        # print(self.rotate(rotation))
-        # wanted_vector = 
-        # print(self.optimizer.optimize(np.array([0., 0., 0., 0., 0., 2295.18311443701]), self.rotate(rotation)))
-        # raise Exception()
-        start = time.time()
+        """
+        Find the array of motor speeds needed to travel at a specific thrust vector and rotation.
+        Finds the next best solution if this vector is not possible.
+        """
+        
         optimized = self.optimizer.optimize(wanted_vector, self.rotate(rotation))
-        test.append(time.time() - start)
-        # if(not optimized[0]):
         return optimized
     
     def set_motors(self, motor_speeds):
-        # print(len(motor_speeds))
-        # print(motor_speed)
-        # print(self.motor_matrix)
-        # print(motor_speeds)
+        """
+        Set each motor to a corresponding speed of motor_speeds.
+        """
         for i, motor in enumerate(self.motors):
-            motor.set(motor_speeds[i])
-
-
-# from inertia import *
-
-
-# test = MotorController(inertia=InertiaBuilder(Cuboid(10, np.array([0, 0, 0]), 5, 5, 1)).moment_of_inertia(), 
-#                        motors=[
-#                             Motor(np.array([-1, 1, 0]), np.array([-1, -1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
-#                             Motor(np.array([1, 1, 0]), np.array([1, -1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
-#                             Motor(np.array([1, 1, 0]), np.array([-1, 1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
-#                             Motor(np.array([-1, 1, 0]), np.array([1, 1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
-#                             Motor(np.array([0, 0, 1]), np.array([0, 0.5, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
-#                             Motor(np.array([0, 0, 1]), np.array([0, -0.5, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11))
-#                            ]
-#                        )
-
-# # target = np.array([0.9,0,0,0,0,0])
-# # print(test.solve(target, quaternion.from_euler_angles(np.deg2rad(0), 0, 0)))
-# # # test.set_motors(test.solve(target)[1])
-# # # print(quaternion.rotate_vectors(np.quaternion(1,0,0,0), np.array([np.array([1,1,1]), np.array([1,1,1])])))
-# # import time
-# # avg = 0.
-# # count = 0
-# # for i in np.linspace(-1, 1, 1000):
-# #     count += 1
-# #     start = time.time()
-# #     test.solve(np.array([i, 0, 0, 0, 0, 0]), quaternion.from_euler_angles(0, 0, 0))
-# #     avg += time.time() - start
-
-# # print(f"Average time taken: {(avg / count) * 1000} milliseconds")
+            speed = motor_speeds[i]
+            if(motor in self.prev_sent and self.prev_sent[motor] == speed):
+                continue
+            motor.set(speed)
+            self.prev_sent[motor] = speed
+    
+    def killed(self):
+        """
+        Check if the last value sent to each motor was zero.
+        """
+        return np.all(np.isclose([view[1] for view in self.prev_sent.items()], 0))

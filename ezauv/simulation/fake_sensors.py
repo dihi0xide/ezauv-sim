@@ -1,8 +1,10 @@
 import numpy as np
 from ezauv.hardware.sensor_interface import DepthInterface, ImuInterface
 
+# a class to provide fake sensor data for the simulation
 
 class FakeDepthSensor(DepthInterface):
+        # TODO currently not working due to 2D environment
         def __init__(self, deviation):
             self.deviation = deviation
 

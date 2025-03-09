@@ -1,7 +1,13 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+# defines the geometry of the auv, so the code can figure out how it will rotate
+
 class InertiaGeometry(ABC):
+    """
+    An abstract class to define a geometry which is a part of the body.
+    """
+
 
     def __init__(self, mass: int, center: np.ndarray):
         self.mass = mass
@@ -9,23 +15,34 @@ class InertiaGeometry(ABC):
 
     @abstractmethod
     def inertia_tensor(self):
+        """
+        Should return the moment of inertia tensor of this body as a numpy matrix.
+        """
         pass
 
     def translate(self, inertia, displacement_vector):
+        """
+        Translate the moment of inertia tensor by displacement_vector using the parallel axis theorem.
+        """
         I_0 = inertia
         m = self.mass 
         R = displacement_vector
         return I_0 + m * (np.dot(R, R) * np.eye(3) - np.outer(R, R))
     
     def rotate(self, inertia, rotation_matrix):
+        """
+        Rotate the moment of inertia tensor by the given rotation matrix.
+        """
         I_0 = inertia
         R = rotation_matrix
         R_T = rotation_matrix.T
         return R @ I_0 @ R_T
     
     def rotate_to_vector(self, inertia, current_facing, to_face):
-        
-        if(np.all(np.isclose(current_facing, to_face))):
+        """
+        Rotate the moment of inertia tensor to face a vector, given the vector it already faces.
+        """
+        if(np.all(np.isclose(current_facing, to_face))): # if it pretty much already is correct
             return inertia
             
         rotation_axis = np.cross(to_face, current_facing)
@@ -36,14 +53,20 @@ class InertiaGeometry(ABC):
             [0, -rotation_axis[2], rotation_axis[1]],
             [rotation_axis[2], 0, -rotation_axis[0]],
             [-rotation_axis[1], rotation_axis[0], 0]
-        ])
+        ]) # skew-symmetric matrix
+
         R = np.eye(3) + K + np.dot(np.square(K), (1 - np.cos(rotation_angle))/np.sin(rotation_angle))
+        # rodrigues's formula
 
         return self.rotate(inertia, R)
 
     def shift_center(self, inertia, new_center):
+        """
+        Shift the moment of inertia tensor to have a new center 
+        (center means origin; you're saying that position is the new (0, 0, 0))
+        """
         displacement = new_center - self.center
-        return self.translate(inertia, displacement)
+        return self.translate(inertia, displacement) 
 
 
 
@@ -60,6 +83,14 @@ class Sphere(InertiaGeometry):
 class HollowCylinder(InertiaGeometry):
 
     def __init__(self, mass, center, inner_radius, outer_radius, height, facing):
+        """
+        mass: mass of the hollow cylinder
+        center: center of the hollow cylinder
+        inner_radius: radius of the hollow cutout of the cylinder
+        outer_radius: radius of the whole cylinder
+        height: height of the cylinder
+        facing: unit vector of the flat side of the cylinder
+        """
         # facing is unit vector of flat side
         super().__init__(mass, center)
         self.inner_radius = inner_radius
@@ -97,24 +128,31 @@ class Cuboid(InertiaGeometry):
         I_yy = (1 / 12) * self.mass * (a**2 + c**2)
         I_zz = (1 / 12) * self.mass * (a**2 + b**2)
 
-        I = np.diag([I_xx, I_yy, I_zz])  # noqa: E741
+        I = np.diag([I_xx, I_yy, I_zz])
         return I
 
 
 
 
 class InertiaBuilder:
+    """
+    A class to take in geometries, and return an inertia matrix of your AUV.
+    """
    
     def __init__(self, *args: InertiaGeometry):
+        """
+        Pass in any number of InertiaGeometry objects
+        """
         self.geometries = args
 
     def moment_of_inertia(self, center: np.ndarray = np.array([0, 0, 0])):
-
+        """
+        Calculate the moment of inertia tensor (numpy matrix) of the AUV. Center should be the center
+        of mass of the body, or just [0, 0, 0] if you're not sure.
+        """
         total_inertia = np.zeros((3, 3))
         for geometry in self.geometries:
             shifted = geometry.shift_center(geometry.inertia_tensor(), center)
             total_inertia += shifted
 
         return total_inertia
-
-# HollowCylinder(1, 1, 1, 1, 1, np.array([0, 0, 1])).inertia_tensor()

@@ -17,7 +17,7 @@ class Simulate(Subtask):
     def name(self) -> str:
         return "Simulate subtask"
 
-    def update(self, sensors: SensorInterface, wanted_speed: np.ndarray) -> np.ndarray:
+    def update(self, sensors: SensorInterface) -> np.ndarray:
         new_time = time.time()
         if(self.prevtime != -1):
             # set_text(str(new_time - self.prevtime))

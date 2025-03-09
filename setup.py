@@ -2,14 +2,15 @@ from setuptools import setup, find_packages
 
 setup(
     name='ezauv',
-    version='0.1.2',
+    version='0.1.3',
     packages=find_packages(),
     install_requires=[
         'gurobipy==12.0.1',
         'numpy==2.2.3',
         'pygame==2.6.1',
-        'quaternion==3.5.2.post4',
-        'scipy==1.15.2'
+        'numpy-quaternion==3.5.2.post4',
+        'scipy==1.15.2',
+        'imageio[ffmpeg]'
         ],
     description='A library to make coding AUVs easier',
     long_description=open('README.md').read(),
