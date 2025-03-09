@@ -1,10 +1,9 @@
 import numpy as np
-import quaternion
 
 from ezauv.auv import AUV
 from ezauv.hardware import MotorController, Motor, SensorInterface
 from ezauv.utils.inertia import InertiaBuilder, Cuboid
-from ezauv.mission.tasks.main import AccelerateVector, RunFunction
+from ezauv.mission.tasks.main import AccelerateVector
 from ezauv.mission.tasks.subtasks import HeadingPID, Simulate
 from ezauv.mission import Path
 from ezauv.simulation.core import Simulation
