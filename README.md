@@ -15,6 +15,8 @@ ezauv also provides interfaces for logging data to file, building the inertia te
 ```
 pip install ezauv
 ```
+
+For developer information, [read the wiki](https://github.com/beaver-auv/ezauv/wiki).
 ## Example Program
 This example creates a simulation with a square hovercraft, moves it forward, moves it backwards, and then spins it.
 ```python
