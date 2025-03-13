@@ -48,7 +48,7 @@ sim_anchovy = AUV(
                     sim.set_motor(i),
                     lambda: 0,
                     Motor.Range(bounds[i][0], bounds[i][1]),
-                    Motor.Range(-deadzone[i][0], deadzone[i][1])
+                    Motor.Range(deadzone[i][0], deadzone[i][1])
                     )
                 for i, (loc, direction) in enumerate(zip(motor_locations, motor_directions))
                 ]
