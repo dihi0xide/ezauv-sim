@@ -61,8 +61,8 @@ class SimulationAnimator:
         self.screen.blit(text_surface, (0, 0))
 
         raw_frame = pygame.surfarray.array3d(self.screen)
-        raw_frame = np.rot90(raw_frame, k=3)  # Rotate to match correct orientation
-        raw_frame = np.fliplr(raw_frame)  # Flip horizontally
+        raw_frame = np.rot90(raw_frame, k=3)
+        raw_frame = np.fliplr(raw_frame)
         self.writer.append_data(raw_frame)
 
     def render(self):

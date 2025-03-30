@@ -20,7 +20,6 @@ class Simulate(Subtask):
     def update(self, sensors: SensorInterface) -> np.ndarray:
         new_time = time.time()
         if(self.prevtime != -1):
-            # set_text(str(new_time - self.prevtime))
             self.simulation.simulate(new_time - self.prevtime)
         self.prevtime = time.time()
         return np.array([0., 0., 0., 0., 0., 0.])

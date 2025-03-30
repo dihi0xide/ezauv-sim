@@ -7,16 +7,11 @@ from ezauv.utils.logger import LogLevel
 
 
 class DeadzoneOptimizer:
-    # TODO actually document any of this
-    # ok just for future reference b4 documentation bounds are like (-1, 1) and deadzones are like (-0.1, 0.1).
-    # might change in future. probably will use ranges from motors?
-    # need 1 per motor, so both are lists
     def __init__(self, M, bounds, deadzones):
         self.M = M
         self.bounds = bounds
         self.deadzones = deadzones
         self.m, self.n = M.shape
-        print(deadzones)
 
         self.model = Model(
             "MIQP_deadzone"
@@ -131,15 +126,10 @@ class Motor:
         self.set: Callable = set_motor
 
         self.initialize: Callable = initialize
-        # self.inertia_tensor: Optional[np.ndarray] = None
         self.torque_vector: np.ndarray = np.cross(self.position, self.thrust_vector)
 
         self.bounds: Motor.Range = bounds
         self.deadzone: Motor.Range = deadzone
-
-    # def set_inertia_tensor(self, inertia_tensor):
-        # self.inertia_tensor = inertia_tensor
-
 
 class MotorController:
     def __init__(self, *, inertia: np.ndarray, motors: List[Motor]):
@@ -150,9 +140,6 @@ class MotorController:
         )
 
         self.optimizer: Optional[DeadzoneOptimizer] = None
-
-        # for motor in motors:
-            # motor.set_inertia_tensor(self.inertia)
 
         self.motor_matrix = None
         self.mT = None

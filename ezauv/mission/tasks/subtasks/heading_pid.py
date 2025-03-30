@@ -21,14 +21,11 @@ class HeadingPID(Subtask):
     def update(self, sensors: SensorInterface) -> np.ndarray:
         q = sensors.imu.get_rotation()
         v_quat = q * np.quaternion(0, 0.6, 0.0, 0.1) * q.conjugate()
-        # v
         v_prime = np.array([v_quat.x, v_quat.y, v_quat.z])
 
-        # print(v_prime)
         yaw = np.degrees(np.arctan2(v_prime[1], v_prime[0]))
 
         diff = self.wanted - yaw
-        # print(yaw)
         
         if abs(diff) >= 180:
             sign = yaw / abs(yaw)

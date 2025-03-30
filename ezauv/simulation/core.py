@@ -19,7 +19,6 @@ class Simulation:
         self.motor_locations = motor_locations # relative to center
         self.motor_directions = motor_directions
         self.motor_speeds = np.array([np.array([0., 0., 0.]) for _ in motor_directions])
-        # print(self.motor_speeds)
         self.moment_of_inertia = inertia
 
         self.timestep = 0.01 # in seconds
@@ -37,7 +36,6 @@ class Simulation:
         self.prev_vel = np.array([0., 0.])
     
     def simulate(self, time):
-        # set_text(str(self.rotation))
         
         for timepoint in np.arange(self.prevtime, time, self.timestep):
             self.real_accel = (self.velocity - self.prev_vel) / self.timestep
@@ -46,8 +44,6 @@ class Simulation:
             self.velocity += (self.rng.random() - 0.5) * 0.01
             self.rotational_velocity += ((2 * (self.rng.random() - 0.5))) * 0.1
             self.location += self.velocity * self.timestep
-            # print(self.acceleration)
-            # print(self.timestep)
             self.velocity += self.acceleration * self.timestep
             self.rotation = (self.rotation + self.rotational_velocity * self.timestep) % 360
 
@@ -97,9 +93,7 @@ class Simulation:
             speed = max(min(speed, self.bounds[index][1]), self.bounds[index][0])
             if(self.deadzone[index][0] > speed > self.deadzone[index][1]):
                 speed = 0
-            # set_text(str(speed))
             self.motor_speeds[index] = self.motor_directions[index] * speed
-            # print(self.motor_speeds)
     
     def set_motor(self, index):
         return lambda speed: self.set(index, speed)
@@ -107,38 +101,3 @@ class Simulation:
     def apply_force(self, *, thrust, rotation):
         self.velocity += thrust
         self.rotational_velocity += rotation
-        
-
-        
-
-# a = Simulation(
-#         np.array([
-#             np.array([-1., -1.]),
-#             np.array([-1., 1.]),
-#             np.array([1., 1.]),
-#             np.array([1., -1.])
-#         ]),
-#         np.array([
-#                 np.array([1., -1.]),
-#                 np.array([1., 1.]),
-#                 np.array([1., -1.]),
-#                 np.array([1., 1.])
-#         ]),
-#         1/6
-# )
-# # a.update_motor_speeds(np.array([1, 1, 1, 1]))
-# # a.simulate(2)
-# # a.update_motor_speeds(np.array([1, -1, -1, 1]))
-# # a.simulate(8)
-# # a.update_motor_speeds(np.array([0, 0, 0, 0]))
-# # a.simulate(8)
-# # # a.update_motor_speeds(np.array([0, 0, 0, 0]))
-# # # a.simulate(6)
-# # a.render()
-
-
-# # # def emergency_kill():
-#     # pass
-
-# # def set_motor(id, speed):
-# #     set_pin(id, speed)
