@@ -2,13 +2,13 @@ from setuptools import setup, find_packages
 
 setup(
     name='ezauv',
-    version='0.1.5',
+    version='0.1.6',
     packages=find_packages(),
     install_requires=[
         'gurobipy==12.0.1',
         'numpy==2.2.3',
         'pygame==2.6.1',
-        'numpy-quaternion==3.5.2.post4',
+        'numpy-quaternion==2024.0.7',
         'scipy==1.15.2',
         'imageio[ffmpeg]'
         ],
