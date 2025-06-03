@@ -1,6 +1,7 @@
 from ezauv.mission.mission import Subtask
 from ezauv.hardware.sensor_interface import SensorInterface
 from ezauv.utils.pid import PID
+from ezauv import AccelerationState
 
 import numpy as np
 import quaternion
@@ -20,11 +21,8 @@ class HeadingPID(Subtask):
 
     def update(self, sensors: SensorInterface) -> np.ndarray:
         q = sensors.imu.get_rotation()
-        v_quat = q * np.quaternion(0, 0.6, 0.0, 0.1) * q.conjugate()
-        v_prime = np.array([v_quat.x, v_quat.y, v_quat.z])
-
-        yaw = np.degrees(np.arctan2(v_prime[1], v_prime[0]))
-
+                
+        yaw = np.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y**2 + q.z**2))
         diff = self.wanted - yaw
         
         if abs(diff) >= 180:
@@ -34,4 +32,4 @@ class HeadingPID(Subtask):
             diff = sign * (abs_diff_yaw + abs_diff_target)
 
         signal = self.pid.signal(-diff)
-        return np.array([0., 0., 0., 0., 0., signal])
+        return AccelerationState(Rz=signal)

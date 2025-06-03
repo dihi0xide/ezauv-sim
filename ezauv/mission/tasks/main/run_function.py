@@ -1,5 +1,6 @@
 from ezauv.mission.mission import Task
 from ezauv.hardware.sensor_interface import SensorInterface
+from ezauv import AccelerationState
 
 import numpy as np
 
@@ -21,5 +22,4 @@ class RunFunction(Task):
     def update(self, sensors: SensorInterface) -> np.ndarray:
         self.func()
         self.run = True
-        return np.array([0., 0., 0., 0., 0., 0.])
-        
+        return AccelerationState()

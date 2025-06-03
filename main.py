@@ -7,7 +7,7 @@ from ezauv.mission.tasks.main import AccelerateVector
 from ezauv.mission.tasks.subtasks import HeadingPID, Simulate
 from ezauv.mission import Path
 from ezauv.simulation.core import Simulation
-
+from ezauv import AccelerationState
 
 motor_locations = [
     np.array([-1., -1., 0.]),
@@ -57,14 +57,16 @@ sim_anchovy = AUV(
     )
 
 sim_anchovy.register_subtask(Simulate(sim)) # gotta make sure it knows to simulate the sub
-sim_anchovy.register_subtask(HeadingPID(0, 0.03, 0.0, 0.01)) # this will keep it facing straight
-
+# sim_anchovy.register_subtask(HeadingPID(0, 100, 0.0, 0.0)) # this will keep it facing straight
 
 mission = Path(
-    AccelerateVector(np.array([1., 0., 0., 0., 0., 0.]), 2), # start by going forward
-    AccelerateVector(np.array([-1, 0., 0., 0., 0., 0.]), 2), # slow down...
-    AccelerateVector(np.array([0., 0., 0., 0., 0., 100.]), 10)) # spin as fast as you can!
+    AccelerateVector(AccelerationState(Tx=1), 3),
+    AccelerateVector(AccelerationState(Tx=-1), 3),
+    AccelerateVector(AccelerationState(Rz=100), 5),
+    AccelerateVector(AccelerationState(Tx=-3, Ty=0), 5)
+)
 
 sim_anchovy.travel_path(mission)
+print(sim.location)
 
 sim.render()

@@ -4,6 +4,7 @@ from gurobipy import GRB, Model, quicksum
 import quaternion
 
 from ezauv.utils.logger import LogLevel
+from ezauv import AccelerationState
 
 
 class DeadzoneOptimizer:
@@ -72,11 +73,11 @@ class DeadzoneOptimizer:
         self.model.Params.OutputFlag = 0
         self.model.update()
 
-    def optimize(self, V, M):
+    def optimize(self, V):
         for j in range(self.m):
             self.constrs[j].setAttr(GRB.Attr.RHS, V[j])
-            for i in range(self.n):
-                self.model.chgCoeff(self.constrs[j], self.u[i], M[j, i])
+            # for i in range(self.n):
+            #     self.model.chgCoeff(self.constrs[j], self.u[i], M[j, i])
 
         self.model.setObjective(
             quicksum(self.eps[j] * self.eps[j] for j in range(self.m)), GRB.MINIMIZE
@@ -193,30 +194,32 @@ class MotorController:
         self.optimizer = DeadzoneOptimizer(self.motor_matrix, bounds, deadzones)
         self.mT = self.motor_matrix.T
 
-    def rotate(self, rotation):
-        """
-        Rotate the motor matrix by the quaternion rotation.
-        """
-        rotated_vectors = []
-        for vec in self.mT:
-            split_vec = np.split(vec, [3])
-            rotated_vectors.append(
-                [
-                    val
-                    for sublist in quaternion.rotate_vectors(rotation, split_vec)
-                    for val in sublist
-                ]
-            )
+    # def rotate(self, rotation):
+    #     """
+    #     Rotate the motor matrix by the quaternion rotation.
+    #     """
+    #     rotated_vectors = []
+    #     for vec in self.mT:
+    #         split_vec = np.split(vec, [3])
+    #         rotated_vectors.append(
+    #             [
+    #                 val
+    #                 for sublist in quaternion.rotate_vectors(rotation, split_vec)
+    #                 for val in sublist
+    #             ]
+    #         )
 
-        return np.array(rotated_vectors).T
+    #     return np.array(rotated_vectors).T
 
-    def solve(self, wanted_vector, rotation):
+    def solve(self, wanted_acceleration: AccelerationState, rotation):
         """
         Find the array of motor speeds needed to travel at a specific thrust vector and rotation.
         Finds the next best solution if this vector is not possible.
         """
-
-        optimized = self.optimizer.optimize(wanted_vector, self.rotate(rotation))
+        wanted_acceleration.rotate(rotation.conjugate())
+        rotated_wanted = np.append(wanted_acceleration.translation, wanted_acceleration.rotation)
+        
+        optimized = self.optimizer.optimize(rotated_wanted)
         return optimized
 
     def set_motors(self, motor_speeds):

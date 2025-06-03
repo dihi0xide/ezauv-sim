@@ -1,6 +1,7 @@
 from ezauv.mission.mission import Subtask
 from ezauv.hardware.sensor_interface import SensorInterface
 from ezauv.simulation.core import Simulation
+from ezauv import AccelerationState
 
 import numpy as np
 import time
@@ -22,5 +23,5 @@ class Simulate(Subtask):
         if(self.prevtime != -1):
             self.simulation.simulate(new_time - self.prevtime)
         self.prevtime = time.time()
-        return np.array([0., 0., 0., 0., 0., 0.])
+        return AccelerationState()
         

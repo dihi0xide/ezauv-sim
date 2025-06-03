@@ -1,5 +1,6 @@
 import numpy as np
 import traceback
+import copy
 from typing import Callable, List
 
 from ezauv.hardware.motor_controller import MotorController
@@ -61,7 +62,7 @@ class AUV:
             for task in mission.path:
                 self.logger.log(f"Beginning task {task.name}")
                 while(not task.finished):
-                    wanted_direction = np.copy(task.update(self.sensors))
+                    wanted_direction = copy.deepcopy(task.update(self.sensors))
                     
                     for subtask in self.subtasks:
                         wanted_direction += subtask.update(self.sensors)
