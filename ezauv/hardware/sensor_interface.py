@@ -33,7 +33,7 @@ class DepthInterface(ABC):
     def __init__(self):
         super().__init__()
         self.log = lambda str: print(str)
-    
+
     @abstractmethod
     def get_depth(self) -> float:
         pass

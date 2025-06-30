@@ -1,108 +1,138 @@
 from typing import List, Callable, Optional
 import numpy as np
-from gurobipy import GRB, Model, quicksum
+import pulp
 import quaternion
 
 from ezauv.utils.logger import LogLevel
 from ezauv import AccelerationState
 
-
 class DeadzoneOptimizer:
+    """
+    An optimizer to determine the best motor outputs to achieve a desired acceleration,
+    while respecting motor bounds and deadzones.
+
+    This implementation uses the PuLP modeling framework with a MILP (Mixed-Integer
+    Linear Program) formulation. It performs a two-stage optimization:
+    1. Minimize the L1 norm of the error between the desired and achievable acceleration.
+    2. With the error fixed, minimize the L1 norm of the motor thrusts to find the
+       most efficient control output.
+    """
+
     def __init__(self, M, bounds, deadzones):
         self.M = M
         self.bounds = bounds
         self.deadzones = deadzones
         self.m, self.n = M.shape
 
-        self.model = Model(
-            "MIQP_deadzone"
-        )  # miqp = mixed integer quadratic programming
-        # quadratic because it minimized the sum of squares of elements of the matrix
-        # integer because it uses boolean variables to determine what side of the deadzone the continous variables are on
-        # mixed because it also has continuous
-        # programming meaning optimization, because it minimizes the sum of squares
+        # Create the PuLP problem. It will be reused and modified in each call to optimize().
+        self.model = pulp.LpProblem("MILP_deadzone_optimizer", pulp.LpMinimize)
 
-        self.eps = self.model.addVars(
-            self.m, lb=-float("inf"), vtype=GRB.CONTINUOUS, name="eps"
-        )
+        # --- Variable Definitions ---
+        # u: Continuous variables for motor speeds
+        self.u = pulp.LpVariable.dicts("u", range(self.n), cat=pulp.LpContinuous)
 
-        self.u = {}
+        # eps: Continuous variables for the error between desired and actual acceleration
+        self.eps = pulp.LpVariable.dicts("eps", range(self.m), cat=pulp.LpContinuous)
+
+        # z: Binary variables to model whether a motor is active (outside its deadzone)
+        self.z = pulp.LpVariable.dicts("z", range(self.n), cat=pulp.LpBinary)
+
+        # s: Binary variables to select the positive or negative side of the deadzone
+        self.s = pulp.LpVariable.dicts("s", range(self.n), cat=pulp.LpBinary)
+
+        # Auxiliary variables to linearize the L1 norm (absolute value) objective
+        self.eps_abs = pulp.LpVariable.dicts("eps_abs", range(self.m), lowBound=0)
+        self.u_abs = pulp.LpVariable.dicts("u_abs", range(self.n), lowBound=0)
+
+        # A large constant for the "big-M" method in MILP constraints.
+        self.M0 = (
+            max(abs(b) for bound in bounds for b in bound) * 1.2
+        )  # Add a 20% buffer
+
+        # --- Static Constraint Definitions ---
+        # These constraints are defined once and are part of the model for every optimization.
         for i in range(self.n):
-            self.u[i] = self.model.addVar(
-                lb=bounds[i][0], ub=bounds[i][1], vtype=GRB.CONTINUOUS, name=f"u_{i}"
-            )
+            # 1. Motor speed bounds
+            self.model += self.u[i] >= self.bounds[i][0], f"u_lower_bound_{i}"
+            self.model += self.u[i] <= self.bounds[i][1], f"u_upper_bound_{i}"
 
-        self.z = self.model.addVars(self.n, vtype=GRB.BINARY, name="z")
-        self.s = self.model.addVars(self.n, vtype=GRB.BINARY, name="s")
+            # 2. Link motor speed 'u' to its on/off state 'z'. If z=0, u=0.
+            self.model += self.u[i] <= self.bounds[i][1] * self.z[i], f"u_z_upper_{i}"
+            self.model += self.u[i] >= self.bounds[i][0] * self.z[i], f"u_z_lower_{i}"
 
-        self.M0 = max(abs(b) for bound in bounds for b in bound)
-
-        for i in range(self.n):
-            self.model.addConstr(
-                self.u[i] >= -self.z[i] * bounds[i][1], name=f"u_lower_bound_{i}"
-            )
-            self.model.addConstr(
-                self.u[i] <= self.z[i] * bounds[i][1], name=f"u_upper_bound_{i}"
-            )
-            # either bounded in (-b, b) or (0, 0)
-
-        for i in range(self.n):
-            self.model.addConstr(
+            # 3. Deadzone constraints. If a motor is on (z=1), its speed 'u' must
+            #    be outside the deadzone range [deadzone.min, deadzone.max].
+            #    This is the big-M formulation for the disjunctive constraint:
+            #    (u[i] <= deadzone.min) OR (u[i] >= deadzone.max)
+            self.model += (
                 self.u[i] - self.deadzones[i][1] * self.s[i] + self.M0 * (1 - self.s[i])
                 >= self.M0 * (1 - self.z[i]),
-                name=f"u_upper_deadzone_{i}"
+                f"deadzone_upper_{i}",
             )
-
-            self.model.addConstr(
-                self.u[i] - self.M0 * self.s[i] + deadzones[i][0] * (1 - self.s[i])
+            self.model += (
+                self.u[i] - self.M0 * self.s[i] + self.deadzones[i][0] * (1 - self.s[i])
                 <= self.M0 * (1 - self.z[i]),
-                name=f"u_lower_deadzone_{i}"
+                f"deadzone_lower_{i}",
             )
-            # deadzones
 
-        self.constrs = []
+            # 4. Linearization of the L1 norm for motor speeds. |u| = u_abs
+            self.model += self.u_abs[i] >= self.u[i], f"u_abs_pos_{i}"
+            self.model += self.u_abs[i] >= -self.u[i], f"u_abs_neg_{i}"
+
         for j in range(self.m):
-            expr = (
-                quicksum(self.M[j, i] * (self.u[i]) for i in range(self.n))
-                + self.eps[j]
-            )
-
-            self.constrs.append(self.model.addConstr(expr == 0, name=f"eq_row_{j}"))
-            # matrix multiplication must be true
-
-        self.model.Params.OutputFlag = 0
-        self.model.update()
+            # 5. Linearization of the L1 norm for the error. |eps| = eps_abs
+            self.model += self.eps_abs[j] >= self.eps[j], f"eps_abs_pos_{j}"
+            self.model += self.eps_abs[j] >= -self.eps[j], f"eps_abs_neg_{j}"
 
     def optimize(self, V):
+        """
+        Solves the two-stage optimization problem for a given desired acceleration vector V.
+        """
+        # --- Stage 1: Minimize Error ---
+
+        # Add the physics constraint for this specific run. Overwrites previous if exists.
         for j in range(self.m):
-            self.constrs[j].setAttr(GRB.Attr.RHS, V[j])
-            # for i in range(self.n):
-            #     self.model.chgCoeff(self.constrs[j], self.u[i], M[j, i])
+            self.model.constraints[f"physics_{j}"] = (
+                pulp.lpSum(self.M[j, i] * self.u[i] for i in range(self.n))
+                + self.eps[j]
+                == V[j]
+            )
 
-        self.model.setObjective(
-            quicksum(self.eps[j] * self.eps[j] for j in range(self.m)), GRB.MINIMIZE
-        )
-        self.model.optimize()
+        # Set the objective to minimize the L1 norm of the error
+        self.model.setObjective(pulp.lpSum(self.eps_abs))
 
-        if self.model.status != GRB.OPTIMAL:
-            return False, None
+        # Solve the model. msg=0 suppresses solver output.
+#        self.model.solve(pulp.SCIP_CMD(msg=0))
 
-        eps_opt = [self.eps[j].X for j in range(self.m)]
+        # If no optimal solution found, cleanup and return failure.
+#        if self.model.status != pulp.LpStatusOptimal:
+#            for j in range(self.m):
+#                del self.model.constraints[f"physics_{j}"]
+#            return False, None
 
+        # Store the optimal error values from stage 1.
+        eps_opt = [pulp.value(self.eps[j]) for j in range(self.m)]
+
+        # --- Stage 2: Minimize Control Effort ---
+
+        # Add constraints to fix the error to the optimal values found above.
         for j in range(self.m):
-            self.eps[j].LB = eps_opt[j]
-            self.eps[j].UB = eps_opt[j]
+            self.model.constraints[f"fix_eps_{j}"] = self.eps[j] == eps_opt[j]
 
-        self.model.setObjective(
-            quicksum(self.u[i] * self.u[i] for i in range(self.n)), GRB.MINIMIZE
-        )
-        self.model.optimize()
+        # Change the objective to minimize the L1 norm of motor commands.
+        self.model.setObjective(pulp.lpSum(self.u_abs))
+        self.model.solve(pulp.SCIP_CMD(msg=0, threads=16))
 
+        # --- Cleanup for the next run ---
+        # It's crucial to remove the constraints that were specific to this run (V and eps_opt).
         for j in range(self.m):
-            self.eps[j].LB = -float("inf")
-            self.eps[j].UB = float("inf")
-        if self.model.status == GRB.OPTIMAL:
-            return True, np.array([self.u[i].X for i in range(self.n)])
+            del self.model.constraints[f"physics_{j}"]
+            del self.model.constraints[f"fix_eps_{j}"]
+
+        # --- Return solution ---
+        if self.model.status == pulp.LpStatusOptimal:
+            solution = np.array([pulp.value(self.u[i]) for i in range(self.n)])
+            return True, solution
 
         return False, None
 
@@ -132,10 +162,15 @@ class Motor:
         self.bounds: Motor.Range = bounds
         self.deadzone: Motor.Range = deadzone
 
+
 class MotorController:
     def __init__(self, *, inertia: np.ndarray, motors: List[Motor]):
-        self.inv_inertia: np.ndarray = np.linalg.inv(inertia)  # the inverse inertia tensor of the entire body
-        self.motors: np.ndarray = np.array(motors)  # the list of motors this sub owns
+        self.inv_inertia: np.ndarray = np.linalg.inv(
+            inertia
+        )  # the inverse inertia tensor of the entire body
+        self.motors: np.ndarray = np.array(
+            motors
+        )  # the list of motors this sub owns
         self.log: Callable = lambda str, level=None: print(
             f"Motor logger is not set --- {str}"
         )
@@ -194,31 +229,16 @@ class MotorController:
         self.optimizer = DeadzoneOptimizer(self.motor_matrix, bounds, deadzones)
         self.mT = self.motor_matrix.T
 
-    # def rotate(self, rotation):
-    #     """
-    #     Rotate the motor matrix by the quaternion rotation.
-    #     """
-    #     rotated_vectors = []
-    #     for vec in self.mT:
-    #         split_vec = np.split(vec, [3])
-    #         rotated_vectors.append(
-    #             [
-    #                 val
-    #                 for sublist in quaternion.rotate_vectors(rotation, split_vec)
-    #                 for val in sublist
-    #             ]
-    #         )
-
-    #     return np.array(rotated_vectors).T
-
     def solve(self, wanted_acceleration: AccelerationState, rotation):
         """
         Find the array of motor speeds needed to travel at a specific thrust vector and rotation.
         Finds the next best solution if this vector is not possible.
         """
         wanted_acceleration.rotate(rotation.conjugate())
-        rotated_wanted = np.append(wanted_acceleration.translation, wanted_acceleration.rotation)
-        
+        rotated_wanted = np.append(
+            wanted_acceleration.translation, wanted_acceleration.rotation
+        )
+
         optimized = self.optimizer.optimize(rotated_wanted)
         return optimized
 
@@ -238,3 +258,32 @@ class MotorController:
         Check if the last value sent to each motor was zero.
         """
         return np.all(np.isclose([view[1] for view in self.prev_sent.items()], 0))
+
+from ezauv.utils import InertiaBuilder, Cuboid
+
+
+test = MotorController(inertia=InertiaBuilder(Cuboid(10, np.array([0, 0, 0]), 5, 5, 1)).moment_of_inertia(),
+                       motors=[
+                            Motor(np.array([-1, 1, 0]), np.array([-1, -1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
+                            Motor(np.array([1, 1, 0]), np.array([1, -1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
+                            Motor(np.array([1, 1, 0]), np.array([-1, 1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
+                            Motor(np.array([-1, 1, 0]), np.array([1, 1, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
+                            Motor(np.array([0, 0, 1]), np.array([0, 0.5, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11)),
+                            Motor(np.array([0, 0, 1]), np.array([0, -0.5, 0]), lambda num: print(num), lambda _: 0, Motor.Range(-0.2, 0.2), Motor.Range(0.11, 0.11))
+                           ]
+                       )
+
+target = np.array([0.9,0,0,0,0,0])
+#print(test.solve(target, quaternion.from_euler_angles(np.deg2rad(0), 0, 0)))
+#test.set_motors(test.solve(target)[1])
+#print(quaternion.rotate_vectors(np.quaternion(1,0,0,0), np.array([np.array([1,1,1]), np.array([1,1,1])])))
+import time
+avg = 0.
+count = 0
+for i in np.linspace(-1, 1, 10):
+    count += 1
+    start = time.time()
+    print(test.solve(AccelerationState(), quaternion.from_euler_angles(0, 0, 0)))
+    avg += time.time() - start
+
+print(f"Average time taken: {(avg / count) * 1000} milliseconds")
