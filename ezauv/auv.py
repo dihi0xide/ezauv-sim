@@ -1,6 +1,7 @@
 import numpy as np
 import traceback
 import copy
+import quaternion
 from typing import Callable, List
 
 from ezauv.hardware.motor_controller import MotorController
@@ -33,8 +34,6 @@ class AUV:
 
         self.motor_controller.log = self.logger.create_sourced_logger("MOTOR")
         self.sensors.log = self.logger.create_sourced_logger("SENSOR")
-        self.sensors.depth.log = self.logger.create_sourced_logger("DEPTH")
-        self.sensors.imu.log = self.logger.create_sourced_logger("IMU")
 
         self.logger.log("Sub enabled")
         self.motor_controller.overview()
@@ -61,15 +60,20 @@ class AUV:
         try:
             for task in mission.path:
                 self.logger.log(f"Beginning task {task.name}")
+                sensor_data = self.sensors.get_data()
+                
                 while(not task.finished):
-                    wanted_direction = copy.deepcopy(task.update(self.sensors))
+                    wanted_direction = copy.deepcopy(task.update(sensor_data))
                     
                     for subtask in self.subtasks:
-                        wanted_direction += subtask.update(self.sensors)
+                        wanted_direction += subtask.update(sensor_data)
+
+                    rotation = sensor_data["rotation"] if "rotation" in sensor_data else np.quaternion()
+
 
                     solved_motors = self.motor_controller.solve(
                         wanted_direction,
-                        self.sensors.imu.get_rotation()
+                        rotation
                     )
 
                     if(solved_motors[0]):

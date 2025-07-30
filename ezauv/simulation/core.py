@@ -1,6 +1,6 @@
 import numpy as np
 from ezauv.simulation.animator import SimulationAnimator
-from ezauv.simulation.fake_sensors import FakeDepthSensor, FakeIMU
+from ezauv.simulation.fake_sensors import FakeIMU
 from scipy.spatial.transform import Rotation as R
 import quaternion
 
@@ -81,9 +81,6 @@ class Simulation:
     def update_motor_speeds(self, speeds):
         self.motor_speeds = [d * s for d, s in zip(self.motor_directions, speeds)]
         
-
-    def depth(self, dev):
-        return FakeDepthSensor(dev)
     
     def imu(self, dev):
         return FakeIMU(dev, lambda: self.real_accel, lambda: quaternion.from_euler_angles([np.deg2rad(self.rotation), 0., 0.]))

@@ -8,10 +8,12 @@ class AccelerationState:
                  Tz=0,
                  Rx=0,
                  Ry=0,
-                 Rz=0
+                 Rz=0,
+                 ignore_rotation=(True, True, False) # defaults to only account for yaw rotation
                  ):
         self.translation = np.array([Tx, Ty, Tz])
         self.rotation = np.array([Rx, Ry, Rz])
+        self.ignore_rotation = ignore_rotation
 
     def quaternion(self):
         return quaternion.from_euler_angles(self.rotation)
@@ -25,8 +27,11 @@ class AccelerationState:
         )
 
     def __add__(self, other):
-
+        
         if isinstance(other, AccelerationState):
+            if self.ignore_rotation != other.ignore_rotation:
+                raise Exception("Cannot add directions which account for different global rotation axes")
+            
             t = self.translation + other.translation
             r = self.rotation + other.rotation
             return AccelerationState(

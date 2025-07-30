@@ -1,23 +1,9 @@
 import numpy as np
-from ezauv.hardware.sensor_interface import DepthInterface, ImuInterface
+from ezauv.hardware.sensor_interface import Sensor
 
 # a class to provide fake sensor data for the simulation
-
-class FakeDepthSensor(DepthInterface):
-        # TODO currently not working due to 2D environment
-        def __init__(self, deviation):
-            self.deviation = deviation
-
-        def get_depth(self):
-            return 0.
         
-        def initialize(self):
-            pass
-
-        def overview(self) -> str:
-            return f"Simulated Depth Sensor -- Standard deviation: {self.deviation}. Currently hovercraft-only, no depth."
-        
-class FakeIMU(ImuInterface):
+class FakeIMU(Sensor):
 
     def __init__(self, max_dev_accel, acceleration_function, rotation_function):
         self.max_dev_accel = max_dev_accel
@@ -28,8 +14,8 @@ class FakeIMU(ImuInterface):
         acceleration = self.acceleration_function() + (np.random.rand(2) - 0.5) * 2 * self.max_dev_accel
         return np.append(acceleration, 0) # bc it expects a 3d acceleration
     
-    def get_rotation(self):
-        return self.rotation_function()
+    def get_data(self):
+        return {"rotation": self.rotation_function(), "acceleration": self.get_accelerations()}
 
     def initialize(self):
         pass

@@ -1,11 +1,8 @@
 from ezauv.mission.mission import Subtask
-from ezauv.hardware.sensor_interface import SensorInterface
 from ezauv.utils.pid import PID
 from ezauv import AccelerationState
 
 import numpy as np
-import quaternion
-
 
 
 class HeadingPID(Subtask):
@@ -19,9 +16,12 @@ class HeadingPID(Subtask):
     def name(self) -> str:
         return "Heading PID subtask"
 
-    def update(self, sensors: SensorInterface) -> np.ndarray:
-        q = sensors.imu.get_rotation()
-                
+    def update(self, sensor_data: dict) -> np.ndarray:
+        q = sensor_data["rotation"]
+        if q is None:
+            raise Exception("Heading PID cannot run without rotation data")
+        
+        
         yaw = np.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y**2 + q.z**2))
         diff = self.wanted - yaw
         

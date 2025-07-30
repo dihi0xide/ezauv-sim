@@ -19,7 +19,7 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def update(self, sensors) -> AccelerationState:
+    def update(self, sensor_data) -> AccelerationState:
         """Update based on sensor data."""
         pass
 
@@ -31,8 +31,8 @@ class Subtask(ABC):
         pass
 
     @abstractmethod
-    def update(self, sensors) -> AccelerationState:
-        """Update direction based on sensors. Does not directly set the direction, only adds to it."""
+    def update(self, sensor_data) -> AccelerationState:
+        """Update direction based on sensor data. Does not directly set the direction, only adds to it."""
         pass
 
 

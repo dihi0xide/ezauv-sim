@@ -1,6 +1,7 @@
 from typing import List, Callable, Optional
 import numpy as np
 from gurobipy import GRB, Model, quicksum
+from scipy.spatial.transform import Rotation
 import quaternion
 
 from ezauv.utils.logger import LogLevel
@@ -216,7 +217,15 @@ class MotorController:
         Find the array of motor speeds needed to travel at a specific thrust vector and rotation.
         Finds the next best solution if this vector is not possible.
         """
-        wanted_acceleration.rotate(rotation.conjugate())
+        sci_quat = Rotation.from_quat([rotation.w, rotation.x, rotation.y, rotation.z])
+        # this is so ass PLEASE fix this
+        euler_angles = sci_quat.as_euler("zyx", degrees=False)
+        for i in range(3):
+            if(wanted_acceleration.ignore_rotation[i]):
+                euler_angles[i] = 0
+            
+        wanted_acceleration.rotate(quaternion.from_euler_angles(euler_angles).conjugate())
+        
         rotated_wanted = np.append(wanted_acceleration.translation, wanted_acceleration.rotation)
         
         optimized = self.optimizer.optimize(rotated_wanted)

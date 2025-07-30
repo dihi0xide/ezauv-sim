@@ -9,20 +9,33 @@ from ezauv.mission import Path
 from ezauv.simulation.core import Simulation
 from ezauv import AccelerationState
 
+# motor_locations = [
+#     np.array([-1., -1., 0.]),
+#     np.array([-1., 1., 0.]),
+#     np.array([1., 1., 0.]),
+#     np.array([1., -1., 0.])
+# ]
+
+# motor_directions = [
+#     np.array([1., -1., 0.]),
+#     np.array([1., 1., 0.]),
+#     np.array([1., -1., 0.]),
+#     np.array([1., 1., 0.])
+# ] # this debug motor configuration is the same as bvr auv's hovercraft
+
 motor_locations = [
-    np.array([-1., -1., 0.]),
-    np.array([-1., 1., 0.]),
-    np.array([1., 1., 0.]),
-    np.array([1., -1., 0.])
+    np.array([-1., 1., 0.]),    # motor 2
+    np.array([-1., -1., 0.]),   # motor 3
+    np.array([1., 1., 0.]),     # motor 4
+    np.array([1., -1., 0.]),    # motor 5
 ]
 
 motor_directions = [
-    np.array([1., -1., 0.]),
-    np.array([1., 1., 0.]),
-    np.array([1., -1., 0.]),
-    np.array([1., 1., 0.])
-] # this debug motor configuration is the same as bvr auv's hovercraft
-
+    np.array([1., 1., 0.]),     # motor 2
+    np.array([1., -1., 0.]),   # motor 3
+    np.array([1., -1., 0.]),   # motor 4
+    np.array([1., 1., 0.]),     # motor 5
+]
 
 
 bounds = [[-1, 1]] * 4 # motors can't go outside of (-100%, 100%)...
@@ -53,7 +66,7 @@ sim_anchovy = AUV(
                 for i, (loc, direction) in enumerate(zip(motor_locations, motor_directions))
                 ]
         ),
-        sensors = SensorInterface(imu=sim.imu(0.05), depth=sim.depth(0.)),
+        sensors = SensorInterface(sensors=[sim.imu(0.05)]),
     )
 
 sim_anchovy.register_subtask(Simulate(sim)) # gotta make sure it knows to simulate the sub

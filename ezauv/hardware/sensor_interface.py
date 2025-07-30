@@ -1,62 +1,43 @@
-import numpy as np
 from abc import ABC, abstractmethod
-import quaternion
-
 
 # The abstract interface for interacting with the hardware; this should be
 # extended and registered into the auv
 
-class ImuInterface(ABC):
-
-    def __init__(self):
-        super().__init__()
-        self.log = lambda str, level=None: print(str)
-
-    @abstractmethod
-    def get_accelerations(self) -> np.ndarray:
-        pass
-
-    @abstractmethod
-    def get_rotation(self) -> np.quaternion:
-        pass
+class Sensor(ABC):
+    def __init__(self, log):
+        self.log = log
 
     @abstractmethod
     def initialize(self) -> None:
+        """Initialize this sensor."""
         pass
 
     @abstractmethod
     def overview(self) -> None:
-        pass
-
-class DepthInterface(ABC):
-
-    def __init__(self):
-        super().__init__()
-        self.log = lambda str: print(str)
-    
-    @abstractmethod
-    def get_depth(self) -> float:
+        """Log an overview of this sensor."""
         pass
 
     @abstractmethod
-    def initialize(self) -> None:
-        pass
-
-    @abstractmethod
-    def overview(self) -> str:
+    def get_data(self) -> dict[str, object]:
+        """Get the current data of this sensor, returned in the format of {name: data}, eg. {"depth": 15.4, "density": 0.6}."""
         pass
 
 class SensorInterface:
-
-    def __init__(self, *, imu: ImuInterface, depth: DepthInterface):
-        self.imu: ImuInterface = imu
-        self.depth: DepthInterface = depth
+    def __init__(self, sensors: list[Sensor]):
+        self.sensors: list[Sensor] = sensors
         self.log = lambda str: print(str)
 
     def initialize(self) -> None:
-        self.imu.initialize()
-        self.depth.initialize()
+        for sensor in self.sensors:
+            sensor.log = self.log
+            sensor.initialize()
 
     def overview(self) -> None:
-        self.imu.overview()
-        self.depth.overview()
+        for sensor in self.sensors:
+            sensor.overview()
+
+    def get_data(self) -> dict[str, object]:
+        data = {}
+        for sensor in self.sensors:
+            data.update(sensor.get_data())
+        return data
