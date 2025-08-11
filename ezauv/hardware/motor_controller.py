@@ -1,11 +1,10 @@
 from typing import List, Callable, Optional
 import numpy as np
 from gurobipy import GRB, Model, quicksum
-from scipy.spatial.transform import Rotation
-import quaternion
+from scipy.spatial.transform import Rotation as R
 
 from ezauv.utils.logger import LogLevel
-from ezauv import AccelerationState
+from ezauv import TotalAccelerationState, AccelerationState
 
 
 class DeadzoneOptimizer:
@@ -74,12 +73,18 @@ class DeadzoneOptimizer:
         self.model.Params.OutputFlag = 0
         self.model.update()
 
-    def optimize(self, V):
+    def optimize(self, V, lock_to_yaw=False):
+        # if `lock_to_yaw` is true, if the wanted acceleration is not possible,
+        # the optimizer will find the nearest rotation without changing roll or pitch axes
+        # this means that the optimizer will only adjust the yaw rotation
+
         for j in range(self.m):
             self.constrs[j].setAttr(GRB.Attr.RHS, V[j])
-            # for i in range(self.n):
-            #     self.model.chgCoeff(self.constrs[j], self.u[i], M[j, i])
-
+        if lock_to_yaw:
+            self.eps[3].LB = 0
+            self.eps[3].UB = 0
+            self.eps[4].LB = 0
+            self.eps[4].UB = 0
         self.model.setObjective(
             quicksum(self.eps[j] * self.eps[j] for j in range(self.m)), GRB.MINIMIZE
         )
@@ -195,40 +200,28 @@ class MotorController:
         self.optimizer = DeadzoneOptimizer(self.motor_matrix, bounds, deadzones)
         self.mT = self.motor_matrix.T
 
-    # def rotate(self, rotation):
-    #     """
-    #     Rotate the motor matrix by the quaternion rotation.
-    #     """
-    #     rotated_vectors = []
-    #     for vec in self.mT:
-    #         split_vec = np.split(vec, [3])
-    #         rotated_vectors.append(
-    #             [
-    #                 val
-    #                 for sublist in quaternion.rotate_vectors(rotation, split_vec)
-    #                 for val in sublist
-    #             ]
-    #         )
-
-    #     return np.array(rotated_vectors).T
-
-    def solve(self, wanted_acceleration: AccelerationState, rotation):
+    def solve(self, mixed_acceleration: TotalAccelerationState, rotation: R, lock_to_yaw: bool = False):
         """
         Find the array of motor speeds needed to travel at a specific thrust vector and rotation.
         Finds the next best solution if this vector is not possible.
+        \n
+        If `lock_to_yaw` is true, the given global acceleration will only be rotated by the global
+        yaw rotation.
         """
-        sci_quat = Rotation.from_quat([rotation.w, rotation.x, rotation.y, rotation.z])
-        # this is so ass PLEASE fix this
-        euler_angles = sci_quat.as_euler("zyx", degrees=False)
-        for i in range(3):
-            if(wanted_acceleration.ignore_rotation[i]):
-                euler_angles[i] = 0
-            
-        wanted_acceleration.rotate(quaternion.from_euler_angles(euler_angles).conjugate())
-        
-        rotated_wanted = np.append(wanted_acceleration.translation, wanted_acceleration.rotation)
-        
-        optimized = self.optimizer.optimize(rotated_wanted)
+
+        if isinstance(mixed_acceleration, AccelerationState):
+            mixed_acceleration = mixed_acceleration.to_total()
+
+        if lock_to_yaw:
+            yaw, _, _ = rotation.as_euler('zyx', degrees=False)
+            rotation = R.from_euler('z', yaw, degrees=False)
+        # print(mixed_acceleration)
+        acceleration = mixed_acceleration.extract_acceleration(rotation)
+        # print(acceleration)
+        Rx, Ry, Rz = acceleration.rotation
+        rotated_wanted = np.append(acceleration.translation, np.array([Rx, Ry, Rz]))
+
+        optimized = self.optimizer.optimize(rotated_wanted, lock_to_yaw)
         return optimized
 
     def set_motors(self, motor_speeds):

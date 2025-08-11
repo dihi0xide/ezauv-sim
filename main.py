@@ -7,21 +7,7 @@ from ezauv.mission.tasks.main import AccelerateVector
 from ezauv.mission.tasks.subtasks import HeadingPID, Simulate
 from ezauv.mission import Path
 from ezauv.simulation.core import Simulation
-from ezauv import AccelerationState
-
-# motor_locations = [
-#     np.array([-1., -1., 0.]),
-#     np.array([-1., 1., 0.]),
-#     np.array([1., 1., 0.]),
-#     np.array([1., -1., 0.])
-# ]
-
-# motor_directions = [
-#     np.array([1., -1., 0.]),
-#     np.array([1., 1., 0.]),
-#     np.array([1., -1., 0.]),
-#     np.array([1., 1., 0.])
-# ] # this debug motor configuration is the same as bvr auv's hovercraft
+from ezauv import AccelerationState, TotalAccelerationState
 
 motor_locations = [
     np.array([-1., 1., 0.]),    # motor 2
@@ -32,16 +18,16 @@ motor_locations = [
 
 motor_directions = [
     np.array([1., 1., 0.]),     # motor 2
-    np.array([1., -1., 0.]),   # motor 3
-    np.array([1., -1., 0.]),   # motor 4
+    np.array([1., -1., 0.]),    # motor 3
+    np.array([1., -1., 0.]),    # motor 4
     np.array([1., 1., 0.]),     # motor 5
-]
+]   # this debug motor configuration is the same as bvr auv's hovercraft
 
 
 bounds = [[-1, 1]] * 4 # motors can't go outside of (-100%, 100%)...
 deadzone = [[-0.1, 0.1]] * 4 # or inside (-10%, 10%), unless they equal 0 exactly
 
-sim = Simulation(motor_locations, motor_directions, 1/6, bounds, deadzone)
+sim = Simulation(motor_locations, motor_directions, bounds, deadzone)
 
 sim_anchovy = AUV(
     motor_controller = MotorController(
@@ -67,19 +53,19 @@ sim_anchovy = AUV(
                 ]
         ),
         sensors = SensorInterface(sensors=[sim.imu(0.05)]),
+        lock_to_yaw = False,
+        clock = sim.clock()
     )
 
 sim_anchovy.register_subtask(Simulate(sim)) # gotta make sure it knows to simulate the sub
-# sim_anchovy.register_subtask(HeadingPID(0, 100, 0.0, 0.0)) # this will keep it facing straight
 
 mission = Path(
-    AccelerateVector(AccelerationState(Tx=1), 3),
-    AccelerateVector(AccelerationState(Tx=-1), 3),
-    AccelerateVector(AccelerationState(Rz=100), 5),
-    AccelerateVector(AccelerationState(Tx=-3, Ty=0), 5)
+    AccelerateVector(AccelerationState(Tx=1, local=False), 3),      # start by going right locally,
+    AccelerateVector(AccelerationState(Tx=-1, local=False), 3),     # then slow down by going left locally,
+    AccelerateVector(AccelerationState(Rz=100, local=False), 5),    # then spin really fast,
+    AccelerateVector(AccelerationState(Tx=-10, local=False), 5),    # then go left globally, while spinning
 )
 
 sim_anchovy.travel_path(mission)
-print(sim.location)
 
-sim.render()
+sim.render() # this draws an animation using pygame; you can see it in videos/animation.mp4

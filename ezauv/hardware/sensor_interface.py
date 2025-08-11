@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 # extended and registered into the auv
 
 class Sensor(ABC):
-    def __init__(self, log):
+    def __init__(self, log: callable):
         self.log = log
 
     @abstractmethod
@@ -19,7 +19,13 @@ class Sensor(ABC):
 
     @abstractmethod
     def get_data(self) -> dict[str, object]:
-        """Get the current data of this sensor, returned in the format of {name: data}, eg. {"depth": 15.4, "density": 0.6}."""
+        """
+        Get the current data of this sensor, returned in the format of {name: data}, eg. {"depth": 15.4, "density": 0.6}.
+        If multiple sensors return data under the same index, it is arbitrary which is returned.
+        \n
+        To provide rotation data, return a SciPy Rotation object under the key "rotation". Global
+        rotations will automatically use this value.
+        """
         pass
 
 class SensorInterface:

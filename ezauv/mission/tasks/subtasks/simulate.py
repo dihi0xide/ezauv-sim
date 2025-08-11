@@ -12,16 +12,17 @@ class Simulate(Subtask):
         super().__init__()
         self.simulation = simulation
         self.prevtime = -1.
+        self.a=0
 
-
-    @property
     def name(self) -> str:
-        return "Simulate subtask"
+        return "Simulate"
 
-    def update(self, sensors: SensorInterface) -> np.ndarray:
-        new_time = time.time()
+    def update(self, sensors: dict) -> np.ndarray:
+        new_time = time.perf_counter()
+        # print(f"{new_time=}, {self.prevtime=}")
         if(self.prevtime != -1):
             self.simulation.simulate(new_time - self.prevtime)
-        self.prevtime = time.time()
+        self.prevtime = time.perf_counter()
+        self.a=time.time()
         return AccelerationState()
         

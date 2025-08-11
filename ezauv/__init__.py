@@ -1,4 +1,4 @@
-from ezauv.acceleration_state import AccelerationState
+from ezauv.acceleration_state import TotalAccelerationState, AccelerationState
 
 import ezauv.utils
 import ezauv.simulation

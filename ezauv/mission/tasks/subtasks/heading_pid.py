@@ -1,6 +1,6 @@
 from ezauv.mission.mission import Subtask
 from ezauv.utils.pid import PID
-from ezauv import AccelerationState
+from ezauv import TotalAccelerationState, AccelerationState
 
 import numpy as np
 
@@ -12,9 +12,8 @@ class HeadingPID(Subtask):
         self.pid = PID(Kp, Ki, Kd, 0)
         self.wanted = wanted_heading
 
-    @property
     def name(self) -> str:
-        return "Heading PID subtask"
+        return "Heading PID"
 
     def update(self, sensor_data: dict) -> np.ndarray:
         q = sensor_data["rotation"]
@@ -22,7 +21,7 @@ class HeadingPID(Subtask):
             raise Exception("Heading PID cannot run without rotation data")
         
         
-        yaw = np.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y**2 + q.z**2))
+        yaw = q.as_euler('zyx', degrees=True)[0]
         diff = self.wanted - yaw
         
         if abs(diff) >= 180:
@@ -32,4 +31,4 @@ class HeadingPID(Subtask):
             diff = sign * (abs_diff_yaw + abs_diff_target)
 
         signal = self.pid.signal(-diff)
-        return AccelerationState(Rz=signal)
+        return AccelerationState(Rz=signal, local=True)

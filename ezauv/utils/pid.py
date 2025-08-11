@@ -18,7 +18,7 @@ import time
 
 
 class PID:
-    def __init__(self, proportional, integral, derivative, wanted, interval = None):
+    def __init__(self, proportional: float, integral: float, derivative: float, wanted: float, interval: float = None):
         """
         The first three parameters represent the weight of their respect part of the PID;
         Kp, Ki, and Kd. Wanted is the value the PID will attempt to reach, this cannot be
@@ -49,7 +49,7 @@ class PID:
         self.prevTime = time.time()
         # only used if interval is unset
 
-    def signal(self, current):
+    def signal(self, current: float) -> float:
         """
         Get the control signal given the `current` value
         """

@@ -72,7 +72,7 @@ class Logger:
             self.dead = True
             
 
-    def create_sourced_logger(self, source):
+    def create_sourced_logger(self, source: str) -> callable:
         """
         Create a function to log to this logger with a set source.
         """

@@ -1,13 +1,14 @@
 import numpy as np
+import math
 from ezauv.simulation.animator import SimulationAnimator
 from ezauv.simulation.fake_sensors import FakeIMU
+from ezauv.simulation.fake_clock import FakeClock
 from scipy.spatial.transform import Rotation as R
-import quaternion
 
 # kinda sucks, 2d
 class Simulation:
 
-    def __init__(self, motor_locations, motor_directions, inertia, bounds, deadzone):
+    def __init__(self, motor_locations, motor_directions, bounds, deadzone):
         self.location = np.array([0., 0.])
         self.velocity = np.array([0., 0.])
         self.acceleration = np.array([0., 0.])
@@ -19,7 +20,7 @@ class Simulation:
         self.motor_locations = motor_locations # relative to center
         self.motor_directions = motor_directions
         self.motor_speeds = np.array([np.array([0., 0., 0.]) for _ in motor_directions])
-        self.moment_of_inertia = inertia
+        self.moment_of_inertia = 1/6
 
         self.timestep = 0.01 # in seconds
         self.prevtime = 0
@@ -34,15 +35,22 @@ class Simulation:
 
         self.real_accel = np.array([0., 0.])
         self.prev_vel = np.array([0., 0.])
+
+        self.fake_clock = FakeClock()
+        self.time = 0
+        self.temp_count = 0
     
-    def simulate(self, time):
-        
-        for timepoint in np.arange(self.prevtime, time, self.timestep):
+    def simulate(self, delta_time):
+        delta_time += self.fake_clock.perf_counter() - self.time
+        quantized_time = int(math.floor(self.time / self.timestep))
+        quantized_new_time = int(math.floor((self.time + delta_time) / self.timestep))
+        # quantizing before use prevents floating point errors
+        for timepoint in range(quantized_time, quantized_new_time):
             self.real_accel = (self.velocity - self.prev_vel) / self.timestep
             self.prev_vel = self.acceleration
 
-            self.velocity += (self.rng.random() - 0.5) * 0.01
-            self.rotational_velocity += ((2 * (self.rng.random() - 0.5))) * 0.1
+            # self.velocity += (self.rng.random() - 0.5) * 0.01
+            # self.rotational_velocity += ((2 * (self.rng.random() - 0.5))) * 0.1
             self.location += self.velocity * self.timestep
             self.velocity += self.acceleration * self.timestep
             self.rotation = (self.rotation + self.rotational_velocity * self.timestep) % 360
@@ -74,6 +82,8 @@ class Simulation:
             )
             self.rotational_velocity *= (1 - self.drag)
             self.velocity *= (1 - self.drag)
+        self.time += delta_time
+        self.fake_clock.set_time(self.time)
 
     def render(self):
         self.animator.render()
@@ -83,8 +93,11 @@ class Simulation:
         
     
     def imu(self, dev):
-        return FakeIMU(dev, lambda: self.real_accel, lambda: quaternion.from_euler_angles([np.deg2rad(self.rotation), 0., 0.]))
-    
+        return FakeIMU(dev, lambda: self.real_accel, lambda: R.from_euler('z', self.rotation, degrees=True))
+
+    def clock(self):
+        return self.fake_clock
+
     def set(self, index, speed):
             
             speed = max(min(speed, self.bounds[index][1]), self.bounds[index][0])

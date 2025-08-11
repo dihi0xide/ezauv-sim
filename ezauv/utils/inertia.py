@@ -14,13 +14,13 @@ class InertiaGeometry(ABC):
         self.center = center
 
     @abstractmethod
-    def inertia_tensor(self):
+    def inertia_tensor(self) -> np.ndarray:
         """
         Should return the moment of inertia tensor of this body as a numpy matrix.
         """
         pass
 
-    def translate(self, inertia, displacement_vector):
+    def translate(self, inertia: np.ndarray, displacement_vector: np.ndarray) -> np.ndarray:
         """
         Translate the moment of inertia tensor by displacement_vector using the parallel axis theorem.
         """
@@ -28,8 +28,8 @@ class InertiaGeometry(ABC):
         m = self.mass 
         R = displacement_vector
         return I_0 + m * (np.dot(R, R) * np.eye(3) - np.outer(R, R))
-    
-    def rotate(self, inertia, rotation_matrix):
+
+    def rotate(self, inertia: np.ndarray, rotation_matrix: np.ndarray) -> np.ndarray:
         """
         Rotate the moment of inertia tensor by the given rotation matrix.
         """
@@ -37,8 +37,8 @@ class InertiaGeometry(ABC):
         R = rotation_matrix
         R_T = rotation_matrix.T
         return R @ I_0 @ R_T
-    
-    def rotate_to_vector(self, inertia, current_facing, to_face):
+
+    def rotate_to_vector(self, inertia: np.ndarray, current_facing: np.ndarray, to_face: np.ndarray) -> np.ndarray:
         """
         Rotate the moment of inertia tensor to face a vector, given the vector it already faces.
         """
@@ -60,7 +60,7 @@ class InertiaGeometry(ABC):
 
         return self.rotate(inertia, R)
 
-    def shift_center(self, inertia, new_center):
+    def shift_center(self, inertia: np.ndarray, new_center: np.ndarray) -> np.ndarray:
         """
         Shift the moment of inertia tensor to have a new center 
         (center means origin; you're saying that position is the new (0, 0, 0))
@@ -72,17 +72,17 @@ class InertiaGeometry(ABC):
 
 class Sphere(InertiaGeometry):
 
-    def __init__(self, mass, center, radius):
+    def __init__(self, mass: float, center: np.ndarray, radius: float):
         super().__init__(mass, center)
         self.radius = radius
 
-    def inertia_tensor(self):
+    def inertia_tensor(self) -> np.ndarray:
         I = (2 / 5) * self.mass * self.radius**2
         return I * np.eye(3)
     
 class HollowCylinder(InertiaGeometry):
 
-    def __init__(self, mass, center, inner_radius, outer_radius, height, facing):
+    def __init__(self, mass: float, center: np.ndarray, inner_radius: float, outer_radius: float, height: float, facing: np.ndarray):
         """
         mass: mass of the hollow cylinder
         center: center of the hollow cylinder
@@ -98,7 +98,7 @@ class HollowCylinder(InertiaGeometry):
         self.height = height
         self.facing = facing / np.linalg.norm(facing)
 
-    def inertia_tensor(self):
+    def inertia_tensor(self) -> np.ndarray:
 
         R = self.outer_radius
         k = self.inner_radius
@@ -113,13 +113,13 @@ class HollowCylinder(InertiaGeometry):
     
 class Cuboid(InertiaGeometry):
 
-    def __init__(self, mass, center, width, height, depth):
+    def __init__(self, mass: float, center: np.ndarray, width: float, height: float, depth: float):
         super().__init__(mass, center)
         self.width = width 
         self.height = height 
         self.depth = depth 
 
-    def inertia_tensor(self):
+    def inertia_tensor(self) -> np.ndarray:
         a = self.width
         b = self.height
         c = self.depth
@@ -145,7 +145,7 @@ class InertiaBuilder:
         """
         self.geometries = args
 
-    def moment_of_inertia(self, center: np.ndarray = np.array([0, 0, 0])):
+    def moment_of_inertia(self, center: np.ndarray = np.array([0, 0, 0])) -> np.ndarray:
         """
         Calculate the moment of inertia tensor (numpy matrix) of the AUV. Center should be the center
         of mass of the body, or just [0, 0, 0] if you're not sure.

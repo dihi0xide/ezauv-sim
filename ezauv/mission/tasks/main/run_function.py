@@ -5,16 +5,14 @@ import numpy as np
 
 class RunFunction(Task):
 
-    def __init__(self, func):
+    def __init__(self, func: callable):
         super().__init__()
         self.func = func
         self.run = False
 
-    @property
     def name(self) -> str:
-        return "Run function task"
+        return "Run function"
     
-    @property
     def finished(self) -> bool:
         return self.run
 
