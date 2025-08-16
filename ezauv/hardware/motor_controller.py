@@ -2,6 +2,7 @@ from typing import List, Callable, Optional
 import numpy as np
 from gurobipy import GRB, Model, quicksum
 from scipy.spatial.transform import Rotation as R
+from abc import ABC, abstractmethod
 
 from ezauv.utils.logger import LogLevel
 from ezauv import TotalAccelerationState, AccelerationState
@@ -137,11 +138,20 @@ class Motor:
 
         self.bounds: Motor.Range = bounds
         self.deadzone: Motor.Range = deadzone
+    @abstractmethod
+    def manual_motor(self) -> None:
+        # Manually operate the motor.
+        pass
+    @abstractmethod
+    def reset_motor(self) -> None:
+        # Reset the motor
+        pass
 
 class MotorController:
     def __init__(self, *, inertia: np.ndarray, motors: List[Motor]):
         self.inv_inertia: np.ndarray = np.linalg.inv(inertia)  # the inverse inertia tensor of the entire body
         self.motors: np.ndarray = np.array(motors)  # the list of motors this sub owns
+        self.opti_motors: np.ndarray = np.array(motors) # the list of motors the sub needs to optimize
         self.log: Callable = lambda str, level=None: print(
             f"Motor logger is not set --- {str}"
         )
@@ -181,7 +191,7 @@ class MotorController:
         bounds = []
         deadzones = []
 
-        for i, motor in enumerate(self.motors):
+        for i, motor in enumerate(self.opti_motors):
             new_vector = np.array(
                 [
                     np.concatenate(
@@ -228,7 +238,7 @@ class MotorController:
         """
         Set each motor to a corresponding speed of motor_speeds.
         """
-        for i, motor in enumerate(self.motors):
+        for i, motor in enumerate(self.opti_motors):
             speed = motor_speeds[i]
             if motor in self.prev_sent and self.prev_sent[motor] == speed:
                 continue
@@ -240,3 +250,10 @@ class MotorController:
         Check if the last value sent to each motor was zero.
         """
         return np.all(np.isclose([view[1] for view in self.prev_sent.items()], 0))
+    def change_mode(self, motor: Motor):
+        # Change motor mode to not optimize
+        if motor in self.opti_motors:
+            pop(self.opti_motors.index(motor))
+        # Add it back to opti_motor
+        else:
+            self.opti_motors.add(motor)
